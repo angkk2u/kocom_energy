@@ -1,0 +1,35 @@
+{
+    "title": "Kocom Energy",
+    "config": {
+        "step": {
+            "user": {
+                "title": "Retrieve Server IP",
+                "data": {
+                    "username": "Kocom App Id"
+                },
+                "description": "This step retrieves the server IP. Please enter the ID used in the Kocom app."
+            },
+            "account": {
+                "title": "Enter your kocom app account details",
+                "data": {
+                    "ip":"IP Adress (Do not change)",
+                    "username": "Kocom App Id",
+                    "password": "Kocom App Password",
+                    "phone": "Phone Number",
+                    "update_interval": "Update Interval"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "Failed to connect, please try again.",
+            "timeout": "The connection timed out. Please try again.",
+            "auth_error": "Authentication failed, please check your details and try again.",
+            "unknown_error": "An unknown error occurred.",
+            "ip_not_found": "Cannot find the IP address"
+        },
+        "abort": {
+            "already_configured": "Device is already configured.",
+            "user_cancelled": "Setup was cancelled by the user."
+        }
+    }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "코콤 에너지 사용량 센서",
+  "domains": ["sensor"],
+  "documentation": "https://github.com/angkk2u/kocom_energy/wiki",
+  "issue_tracker": "https://github.com/angkk2u/kocom_energy/issues",
+  "render_readme": true
+}
