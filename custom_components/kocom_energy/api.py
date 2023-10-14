@@ -14,13 +14,19 @@ class API:
     auth_req = ""
     auth_resp_checker = "7856341201001001040000000000000000000000000000000000000000000000"
 
+    # 메뉴 관련 패킷
+    menu_req = "78563412b80b1001040000000000000000000000000000000000000000000000"
+
     # 주소 관련 패킷
     addr_req = "785634120200100120000000000000000000000000000000000000000000000018000000f00000000000000000000000000000000000000000000000"
 
     # 에너지 관련 패킷
-    energy_req_prefix_format = "785634127800100120000000{town}0000{dong}0000{ho}000000000000"
-    energy_req_prefix = ""
-    energy_req_postfix = "000000000000000000000000"
+    energy_disp_type = ""
+    energy_req_type_1_format = "785634127800100120000000{town}0000{dong}0000{ho}000000000000{months_str}000000000000000000000000"
+    # energy_req_type_1_postfix = "000000000000000000000000"
+    
+    energy_req_type_3_format = "785634129001100148000000{town}0000{dong}0000{ho}000000000000020000000200000001000000{months_str}00{months_str}00312c322c332c342c350000000000000000000000"
+    # energy_req_type_3_postfix = "312c322c332c342c350000000000000000000000"
 
 
     def __init__(self, ip, username, password, fcm, phone):
@@ -93,6 +99,47 @@ class API:
 
             if auth_response == self.auth_resp_checker:
                 _LOGGER.debug("인증 성공")
+                
+                # 메뉴 정보 조회 패킷 전송
+                _LOGGER.debug(f"메뉴 정보 조회 요청 패킷 : {self.menu_req}")
+                writer.write(bytes.fromhex(self.menu_req))
+                await writer.drain()
+                
+                # 메뉴 정보 조회 응답 대기 (10초 timeout 설정)
+                try:
+                    menu_response = (await asyncio.wait_for(reader.read(1024), timeout=10.0)).hex()
+                    _LOGGER.debug(f'메뉴 정보 응답 패킷: {menu_response}')
+                    _LOGGER.debug(f'에너지 조회 유형 : {menu_response[96:100]}')
+                    
+                    
+                    """# 에너지 조회 유형 세팅 (energyInfo.class)
+                    
+                    0100 인 경우
+                    |항목|전전달|지난달|이번달|
+                    |---|----|-----|----|
+                    전기    -
+                    가스    -
+                    수도    -
+                    온수    -
+                    난방    -
+
+                    0200 인 경우 아직 미식별됨 (항목을 제외한 열이 4개)
+
+                    0300 1, 2 두가지 유형이 있으나 1번만 처리
+                    |항목|사용량|증감|
+                    |---|----|---|
+                    전기    -
+                    수도    -
+                    온수    -
+                    가스    -
+                    난방    -
+
+                    """
+                    self.energy_disp_type = menu_response[96:100]
+                except asyncio.TimeoutError:
+                    _LOGGER.debug("주소 조회 요청 timeout")
+                    return
+                
                 # 주소 조회 패킷 전송
                 _LOGGER.debug(f"주소 조회 요청 패킷 : {self.addr_req}")
                 writer.write(bytes.fromhex(self.addr_req))
@@ -105,29 +152,33 @@ class API:
                     _LOGGER.debug(f'타운: {addr_response[24:28]}')
                     _LOGGER.debug(f'동: {addr_response[32:36]}')
                     _LOGGER.debug(f'호: {addr_response[40:44]}')
-                    # 주소정보 세팅
-                    self.energy_req_prefix = self.energy_req_prefix_format.format(town=addr_response[24:28], dong=addr_response[32:36], ho=addr_response[40:44])
                 except asyncio.TimeoutError:
                     _LOGGER.debug("주소 조회 요청 timeout")
                     return
 
                 # 에너지 조회 패킷 전송
-                
-                ########## 에너지 요청 데이터 가공 ##########
-                now = datetime.datetime.now()
-                two_months_ago = now.replace(month=(now.month - 2) % 12 or 12)
-                one_month_ago = now.replace(month=(now.month - 1) % 12 or 12)
+                energy_req_data = ""
 
-                months = [
-                    two_months_ago.strftime("%Y%m"),
-                    one_month_ago.strftime("%Y%m"),
-                    now.strftime("%Y%m"),
-                ]
-                months_str = ",".join(months)
+                if self.energy_disp_type == '0100':
+                    ########## 에너지 요청 데이터 가공 ##########
+                    now = datetime.datetime.now()
+                    two_months_ago = now.replace(month=(now.month - 2) % 12 or 12)
+                    one_month_ago = now.replace(month=(now.month - 1) % 12 or 12)
 
-                energy_req_data = (
-                    self.energy_req_prefix + string_to_hex(months_str) + self.energy_req_postfix
-                )
+                    months = [
+                        two_months_ago.strftime("%Y%m"),
+                        one_month_ago.strftime("%Y%m"),
+                        now.strftime("%Y%m"),
+                    ]
+                    months_str = ",".join(months)
+                    
+                    energy_req_data = self.energy_req_type_1_format.format(town=addr_response[24:28], dong=addr_response[32:36], ho=addr_response[40:44], months_str=string_to_hex(months_str))
+                    
+                elif self.energy_disp_type == '0300':
+                    ########## 에너지 요청 데이터 가공 ##########
+                    months_str = datetime.datetime.now().strftime("%Y-%m-00 00:00:00")
+
+                    energy_req_data = self.energy_req_type_3_format.format(town=addr_response[24:28], dong=addr_response[32:36], ho=addr_response[40:44], months_str=string_to_hex(months_str))
 
                 _LOGGER.debug(f"에너지 정보 요청 패킷 : {energy_req_data}")
                 writer.write(bytes.fromhex(energy_req_data))
@@ -138,62 +189,120 @@ class API:
                     gnergy_response = (await asyncio.wait_for(reader.read(1024), timeout=10.0)).hex()
                     _LOGGER.debug(f'에너지 정보 수신 패킷: {gnergy_response}')
 
-                    # 전전달 전기
-                    start_idx = 72
-                    response_ym = hex_to_ascii(gnergy_response[start_idx : start_idx + 16])
-                    usage = hex_to_double(gnergy_response[start_idx + 32 : start_idx + 48])
-                    energy_response_dict["two_months_ago"] = response_ym
-                    energy_response_dict["electricity_usage_two_months_ago"] = usage
+                    if self.energy_disp_type == '0100':
+                        ########## 전전달 에너지 사용량 ##########
+                        # 전기
+                        start_idx = 64
+                        response_ym = hex_to_ascii(gnergy_response[start_idx + 8 : start_idx + 24])
+                        usage = hex_to_double(gnergy_response[start_idx + 40 : start_idx + 56])
+                        energy_response_dict["two_months_ago"] = response_ym
+                        energy_response_dict["electricity_usage_two_months_ago"] = usage
 
-                    # 전전달 가스
-                    start_idx = 128
-                    response_ym = hex_to_ascii(gnergy_response[start_idx : start_idx + 16])
-                    usage = hex_to_double(gnergy_response[start_idx + 32 : start_idx + 48])
-                    energy_response_dict["gas_usage_two_months_ago"] = usage
+                        # 가스
+                        start_idx = 120
+                        usage = hex_to_double(gnergy_response[start_idx + 40 : start_idx + 56])
+                        energy_response_dict["gas_usage_two_months_ago"] = usage
 
-                    # 전전달 수도
-                    start_idx = 184
-                    response_ym = hex_to_ascii(gnergy_response[start_idx : start_idx + 16])
-                    usage = hex_to_double(gnergy_response[start_idx + 32 : start_idx + 48])
-                    energy_response_dict["water_usage_two_months_ago"] = usage
+                        # 수도
+                        start_idx = 176
+                        usage = hex_to_double(gnergy_response[start_idx + 40 : start_idx + 56])
+                        energy_response_dict["water_usage_two_months_ago"] = usage
 
-                    # 지난달 전기
-                    start_idx = 352
-                    response_ym = hex_to_ascii(gnergy_response[start_idx : start_idx + 16])
-                    usage = hex_to_double(gnergy_response[start_idx + 32 : start_idx + 48])
-                    energy_response_dict["last_month"] = response_ym
-                    energy_response_dict["electricity_usage_last_month"] = usage
+                        # 온수
+                        start_idx = 232
+                        usage = hex_to_double(gnergy_response[start_idx + 40 : start_idx + 56])
+                        energy_response_dict["hot_water_usage_two_months_ago"] = usage
 
-                    # 지난달 가스
-                    start_idx = 408
-                    response_ym = hex_to_ascii(gnergy_response[start_idx : start_idx + 16])
-                    usage = hex_to_double(gnergy_response[start_idx + 32 : start_idx + 48])
-                    energy_response_dict["gas_usage_last_month"] = usage
+                        # 난방
+                        start_idx = 288
+                        usage = hex_to_double(gnergy_response[start_idx + 40 : start_idx + 56])
+                        energy_response_dict["heating_usage_two_months_ago"] = usage
 
-                    # 지난달 수도
-                    start_idx = 464
-                    response_ym = hex_to_ascii(gnergy_response[start_idx : start_idx + 16])
-                    usage = hex_to_double(gnergy_response[start_idx + 32 : start_idx + 48])
-                    energy_response_dict["water_usage_last_month"] = usage
+                        ########## 지난달 에너지 사용량 ##########
+                        # 전기
+                        start_idx = 344
+                        response_ym = hex_to_ascii(gnergy_response[start_idx + 8 : start_idx + 24])
+                        usage = hex_to_double(gnergy_response[start_idx + 40 : start_idx + 56])
+                        energy_response_dict["last_month"] = response_ym
+                        energy_response_dict["electricity_usage_last_month"] = usage
 
-                    # 이번달 전기
-                    start_idx = 632
-                    response_ym = hex_to_ascii(gnergy_response[start_idx : start_idx + 16])
-                    usage = hex_to_double(gnergy_response[start_idx + 32 : start_idx + 48])
-                    energy_response_dict["this_month"] = response_ym
-                    energy_response_dict["electricity_usage_this_month"] = usage
+                        # 가스
+                        start_idx = 400
+                        usage = hex_to_double(gnergy_response[start_idx + 40 : start_idx + 56])
+                        energy_response_dict["gas_usage_last_month"] = usage
 
-                    # 이번달 가스
-                    start_idx = 700 - 12
-                    response_ym = hex_to_ascii(gnergy_response[start_idx : start_idx + 16])
-                    usage = hex_to_double(gnergy_response[start_idx + 32 : start_idx + 48])
-                    energy_response_dict["gas_usage_this_month"] = usage
+                        # 수도
+                        start_idx = 456
+                        usage = hex_to_double(gnergy_response[start_idx + 40 : start_idx + 56])
+                        energy_response_dict["water_usage_last_month"] = usage
 
-                    # 이번달 수도
-                    start_idx = 757 - 13
-                    response_ym = hex_to_ascii(gnergy_response[start_idx : start_idx + 16])
-                    usage = hex_to_double(gnergy_response[start_idx + 32 : start_idx + 48])
-                    energy_response_dict["water_usage_this_month"] = usage
+                        # 온수
+                        start_idx = 512
+                        usage = hex_to_double(gnergy_response[start_idx + 40 : start_idx + 56])
+                        energy_response_dict["hot_water_usage_last_month"] = usage
+
+                        # 난방
+                        start_idx = 568
+                        usage = hex_to_double(gnergy_response[start_idx + 40 : start_idx + 56])
+                        energy_response_dict["heating_usage_last_month"] = usage
+
+                        ########## 이번달 에너지 사용량 ##########
+                        # 전기
+                        start_idx = 624
+                        response_ym = hex_to_ascii(gnergy_response[start_idx + 8 : start_idx + 24])
+                        usage = hex_to_double(gnergy_response[start_idx + 40 : start_idx + 56])
+                        energy_response_dict["this_month"] = response_ym
+                        energy_response_dict["electricity_usage_this_month"] = usage
+
+                        # 가스
+                        start_idx = 680
+                        usage = hex_to_double(gnergy_response[start_idx + 40 : start_idx + 56])
+                        energy_response_dict["gas_usage_this_month"] = usage
+
+                        # 수도
+                        start_idx = 736
+                        usage = hex_to_double(gnergy_response[start_idx + 40 : start_idx + 56])
+                        energy_response_dict["water_usage_this_month"] = usage
+
+                        # 온수
+                        start_idx = 792
+                        usage = hex_to_double(gnergy_response[start_idx + 40 : start_idx + 56])
+                        energy_response_dict["hot_water_usage_this_month"] = usage
+
+                        # 난방
+                        start_idx = 848
+                        usage = hex_to_double(gnergy_response[start_idx + 40 : start_idx + 56])
+                        energy_response_dict["heating_usage_this_month"] = usage
+                    
+                    elif self.energy_disp_type == '0300':
+                        # 전기
+                        start_idx = 184
+                        response_ym = hex_to_ascii(gnergy_response[start_idx + 8 : start_idx + 22])
+                        usage = hex_to_double(gnergy_response[start_idx + 48 : start_idx + 64])
+                        energy_response_dict["this_month"] = response_ym
+                        energy_response_dict["electricity_usage_this_month"] = usage
+
+                        # 수도
+                        start_idx = 272
+                        usage = hex_to_double(gnergy_response[start_idx + 48 : start_idx + 64])
+                        energy_response_dict["water_usage_this_month"] = usage
+
+                        # 온수
+                        start_idx = 360
+                        usage = hex_to_double(gnergy_response[start_idx + 48 : start_idx + 64])
+                        energy_response_dict["hot_water_usage_this_month"] = usage
+
+                        # 가스
+                        start_idx = 448
+                        usage = hex_to_double(gnergy_response[start_idx + 48 : start_idx + 64])
+                        energy_response_dict["gas_usage_this_month"] = usage
+
+                        # 난방
+                        start_idx = 536
+                        usage = hex_to_double(gnergy_response[start_idx + 48 : start_idx + 64])
+                        energy_response_dict["heating_usage_this_month"] = usage
+
+
 
                 except asyncio.TimeoutError:
                     _LOGGER.debug("Query response timeout")

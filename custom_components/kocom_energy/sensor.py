@@ -15,7 +15,9 @@ SENSOR_TYPES = {
     "energy": {"name": "Kocom Energy Usage", "icon": "mdi:api"},
     "electricity": {"name": "Kocom Electricity Usage", "icon": "mdi:flash"},
     "gas": {"name": "Kocom Gas Usage", "icon": "mdi:fire"},
-    "water": {"name": "Kocom Water Usage", "icon": "mdi:water"}
+    "water": {"name": "Kocom Water Usage", "icon": "mdi:water"},
+    "hot_water": {"name": "Kocom Hot Water Usage", "icon": "mdi:water-boiler"},
+    "heating": {"name": "Kocom Heating Usage", "icon": "mdi:radiator"}
 }
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -107,6 +109,10 @@ class KocomEnergySensor(CoordinatorEntity, SensorEntity):
             return self.coordinator.data.get("gas_usage_this_month", "unknown")
         elif self._sensor_type == "water":
             return self.coordinator.data.get("water_usage_this_month", "unknown")
+        elif self._sensor_type == "hot_water":
+            return self.coordinator.data.get("hot_water_usage_this_month", "unknown")
+        elif self._sensor_type == "heating":
+            return self.coordinator.data.get("heating_usage_this_month", "unknown")
         return "unknown"
 
     @property
