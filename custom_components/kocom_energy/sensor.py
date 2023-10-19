@@ -5,19 +5,55 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity, DataUpda
 from homeassistant.components.sensor import SensorEntity
 from datetime import timedelta
 
-from .const import DOMAIN
+from .const import DOMAIN, DEVICE_ID
 from .api import API
 
 _LOGGER = logging.getLogger(__name__)
 
 
 SENSOR_TYPES = {
-    "energy": {"name": "Kocom Energy Usage", "icon": "mdi:api"},
-    "electricity": {"name": "Kocom Electricity Usage", "icon": "mdi:flash"},
-    "gas": {"name": "Kocom Gas Usage", "icon": "mdi:fire"},
-    "water": {"name": "Kocom Water Usage", "icon": "mdi:water"},
-    "hot_water": {"name": "Kocom Hot Water Usage", "icon": "mdi:water-boiler"},
-    "heating": {"name": "Kocom Heating Usage", "icon": "mdi:radiator"}
+    "energy": {
+        "name": "Kocom Energy Usage", 
+        "device_class": "", 
+        "unit_of_measurement": "",
+        "state_class": "measurement",
+        "icon": "mdi:api"
+    },
+    "electricity": {
+        "name": "Kocom Electricity Usage", 
+        "device_class": "energy", 
+        "unit_of_measurement": "kWh",
+        "state_class": "total_increasing",
+        "icon": "mdi:flash"
+    },
+    "gas": {
+        "name": "Kocom Gas Usage", 
+        "device_class": "", 
+        "unit_of_measurement": "m³",
+        "state_class": "total_increasing",
+        "icon": "mdi:fire"
+    },
+    "water": {
+        "name": "Kocom Water Usage", 
+        "device_class": "", 
+        "unit_of_measurement": "m³",
+        "state_class": "total_increasing",
+        "icon": "mdi:water"
+    },
+    "hot_water": {
+        "name": "Kocom Hot Water Usage", 
+        "device_class": "", 
+        "unit_of_measurement": "",
+        "state_class": "total_increasing",
+        "icon": "mdi:water-boiler"
+    },
+    "heating": {
+        "name": "Kocom Heating Usage", 
+        "device_class": "", 
+        "unit_of_measurement": "",
+        "state_class": "total_increasing",
+        "icon": "mdi:radiator"
+    }
 }
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -75,7 +111,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
     sensors = []
     for sensor_type, sensor_data in SENSOR_TYPES.items():
-        sensors.append(KocomEnergySensor(coordinator, sensor_type, sensor_data["name"], sensor_data["icon"]))
+        sensors.append(KocomEnergySensor(coordinator, entry, sensor_type, sensor_data))
 
     async_add_entities(sensors)
 
@@ -83,12 +119,43 @@ async def async_setup_entry(hass, entry, async_add_entities):
 class KocomEnergySensor(CoordinatorEntity, SensorEntity):
     """Kocom Energy Sensor using DataUpdateCoordinator."""
 
-    def __init__(self, coordinator, sensor_type, name, icon):
+    def __init__(self, coordinator, entry, sensor_type, sensor_data):
         """Initialize the sensor."""
         super().__init__(coordinator)
+
+        self._entry = entry
         self._sensor_type = sensor_type
-        self._name = name
-        self._icon = icon
+        self._name = sensor_data["name"]
+        self._entry_id = f"{DOMAIN}.{entry.data.get('username')}_{self._name.lower().replace(' ', '_')}"
+        self._unique_id = f"{DOMAIN}.{entry.data.get('username')}_{self._name.lower().replace(' ', '_')}"
+        self._device_class = sensor_data["device_class"]
+        self._unit_of_measurement = sensor_data["unit_of_measurement"]
+        self._state_class = sensor_data["state_class"]
+        self._icon = sensor_data["icon"]
+
+        self._device_info = {
+            "identifiers": {(DOMAIN, DEVICE_ID)},
+            "name": "코콤 에너지",
+            "model": "Kocom Energy"
+        }
+
+    @property
+    def device_info(self):
+        _LOGGER.debug(f"Device ID : {DEVICE_ID}")
+        return self._device_info
+
+    # @property
+    # def entity_id(self):
+    #     username = self._entry.data.get("username")
+    #     return f"{DOMAIN}.{username}_{self._name.lower().replace(' ', '_')}"
+
+    @property
+    def entry_id(self):
+        return self._entry_id
+
+    @property
+    def unique_id(self):
+        return self._unique_id
 
     @property
     def name(self):
@@ -97,6 +164,18 @@ class KocomEnergySensor(CoordinatorEntity, SensorEntity):
     @property
     def icon(self):
         return self._icon
+
+    @property
+    def device_class(self):
+        return self._device_class
+
+    @property
+    def unit_of_measurement(self):
+        return self._unit_of_measurement
+
+    @property
+    def state_class(self):
+        return self._state_class
 
     @property
     def state(self):
