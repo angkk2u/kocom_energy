@@ -28,14 +28,14 @@ SENSOR_TYPES = {
     },
     "gas": {
         "name": "Kocom Gas Usage", 
-        "device_class": "", 
+        "device_class": "gas", 
         "unit_of_measurement": "m³",
         "state_class": "total_increasing",
         "icon": "mdi:fire"
     },
     "water": {
         "name": "Kocom Water Usage", 
-        "device_class": "", 
+        "device_class": "water", 
         "unit_of_measurement": "m³",
         "state_class": "total_increasing",
         "icon": "mdi:water"

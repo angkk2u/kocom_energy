@@ -48,6 +48,7 @@ This project is licensed under the [Apache-2.0 license](LICENSE).
 
 ## History
 
+- 1.0.1 : HA 공식 에너지 메뉴에 추가할 수 있도록 센서 device_class 속성 변경 (가스, 물 사용량)
 - 1.0.0 : 전기요금 계산 센서 (https://github.com/dugurs/kwh_to_won) 와 연계 활용할 수 있도록 센서 속성 부여, 기기 및 구성요소 정보 추가
 - 0.0.2 : 에너지 조회 유형(type3) 대응. 온수, 난방센서 추가
 - 0.0.1 : 베타 테스트 최초 배포

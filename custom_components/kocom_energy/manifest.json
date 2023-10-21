@@ -6,6 +6,6 @@
     "documentation": "https://github.com/angkk2u/kocom_energy",
     "iot_class": "local_polling",
     "requirements": [],
-    "version": "1.0.0",
+    "version": "1.0.1",
     "config_flow": true
 }
