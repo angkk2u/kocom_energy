@@ -2,8 +2,10 @@ import datetime
 import asyncio
 import logging
 
+from dateutil.relativedelta import relativedelta
 from .util import string_to_padded_hex, string_to_hex, hex_to_ascii, hex_to_double
 from .exceptions import AuthenticationError
+
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -162,8 +164,12 @@ class API:
                 if self.energy_disp_type == '0100':
                     ########## 에너지 요청 데이터 가공 ##########
                     now = datetime.datetime.now()
-                    two_months_ago = now.replace(month=(now.month - 2) % 12 or 12)
-                    one_month_ago = now.replace(month=(now.month - 1) % 12 or 12)
+
+                    # 이전 달
+                    one_month_ago = now - relativedelta(months=1)
+
+                    # 그 이전 달
+                    two_months_ago = now - relativedelta(months=2)
 
                     months = [
                         two_months_ago.strftime("%Y%m"),
