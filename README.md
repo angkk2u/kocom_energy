@@ -48,6 +48,7 @@ This project is licensed under the [Apache-2.0 license](LICENSE).
 
 ## History
 
+- 1.0.4 : 설정 변경 지원
 - 1.0.3 : hass.config_entries.async_forward_entry_setup 2025.6 버전에서 제거되는 변경사항 대응
 - 1.0.2 : 날짜 계산 오류 수정. 에너지 조회 유형 1(전전달, 전달, 이번달) 만 해당하는 오류
 - 1.0.1 : HA 공식 에너지 메뉴에 추가할 수 있도록 센서 device_class 속성 변경 (가스, 물 사용량)
