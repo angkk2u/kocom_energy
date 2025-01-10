@@ -12,7 +12,7 @@
             "account": {
                 "title": "Enter your kocom app account details",
                 "data": {
-                    "ip":"IP Adress (Do not change)",
+                    "ip": "IP Adress (Do not change)",
                     "username": "Kocom App Id",
                     "password": "Kocom App Password",
                     "phone": "Phone Number",
@@ -26,10 +26,28 @@
             "auth_error": "Authentication failed, please check your details and try again.",
             "unknown_error": "An unknown error occurred.",
             "ip_not_found": "Cannot find the IP address"
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Update Settings",
+                "description": "Update your account settings.",
+                "data": {
+                    "username": "ID",
+                    "password": "Password",
+                    "update_interval": "Update Interval"
+                }
+            }
         },
         "abort": {
             "already_configured": "Device is already configured.",
-            "user_cancelled": "Setup was cancelled by the user."
+            "user_cancelled": "Setup was cancelled by the user.",
+            "cannot_connect": "Failed to connect, please try again.",
+            "timeout": "The connection timed out. Please try again.",
+            "auth_error": "Authentication failed, please check your details and try again.",
+            "unknown_error": "An unknown error occurred.",
+            "ip_not_found": "Cannot find the IP address"
         }
     }
 }

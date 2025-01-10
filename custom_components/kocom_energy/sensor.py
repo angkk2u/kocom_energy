@@ -139,6 +139,8 @@ class KocomEnergySensor(CoordinatorEntity, SensorEntity):
             "model": "Kocom Energy"
         }
 
+        self._previous_value = None  # 이전 값 저장용 변수 추가
+
     @property
     def device_info(self):
         _LOGGER.debug(f"Device ID : {DEVICE_ID}")
@@ -182,17 +184,50 @@ class KocomEnergySensor(CoordinatorEntity, SensorEntity):
         if self._sensor_type == "energy":
             # 상태값을 현재시간으로 설정
             return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        elif self._sensor_type == "electricity":
-            return self.coordinator.data.get("electricity_usage_this_month", "unknown")
-        elif self._sensor_type == "gas":
-            return self.coordinator.data.get("gas_usage_this_month", "unknown")
-        elif self._sensor_type == "water":
-            return self.coordinator.data.get("water_usage_this_month", "unknown")
-        elif self._sensor_type == "hot_water":
-            return self.coordinator.data.get("hot_water_usage_this_month", "unknown")
-        elif self._sensor_type == "heating":
-            return self.coordinator.data.get("heating_usage_this_month", "unknown")
-        return "unknown"
+        
+        # 각 유틸리티별 현재 사용량과 이전달 사용량 비교
+        current_usage = None
+        last_month_usage = None
+        
+        try:
+            if self._sensor_type == "electricity":
+                current_usage = self.coordinator.data.get("electricity_usage_this_month")
+                last_month_usage = self.coordinator.data.get("electricity_usage_last_month")
+            elif self._sensor_type == "gas":
+                current_usage = self.coordinator.data.get("gas_usage_this_month")
+                last_month_usage = self.coordinator.data.get("gas_usage_last_month")
+            elif self._sensor_type == "water":
+                current_usage = self.coordinator.data.get("water_usage_this_month")
+                last_month_usage = self.coordinator.data.get("water_usage_last_month")
+            elif self._sensor_type == "hot_water":
+                current_usage = self.coordinator.data.get("hot_water_usage_this_month")
+                last_month_usage = self.coordinator.data.get("hot_water_usage_last_month")
+            elif self._sensor_type == "heating":
+                current_usage = self.coordinator.data.get("heating_usage_this_month")
+                last_month_usage = self.coordinator.data.get("heating_usage_last_month")
+        except Exception as e:
+            _LOGGER.error(f"{self._sensor_type} 센서 데이터 처리 중 오류 발생: {e}")
+            return "unknown"
+        
+        # 현재 사용량이 None이면 unknown 반환
+        if current_usage is None:
+            return "unknown"
+            
+        # 현재 사용량이 0이면 그대로 반영
+        if current_usage == 0:
+            self._previous_value = current_usage
+            return current_usage
+            
+        # 이상치가 발생하는 패턴 : 이전달의 사용량이 이번달 사용량으로 응답데이터로 조회 됨
+        if current_usage == last_month_usage:
+            _LOGGER.warning(
+                f"{self._sensor_type} 현재 사용량이 이전달과 동일합니다. 이전 상태값 유지 (현재: {current_usage}, 이전달: {last_month_usage})"
+            )
+            return self._previous_value if self._previous_value is not None else "unknown"
+        
+        # 정상적인 경우 현재 값을 저장하고 반환
+        self._previous_value = current_usage
+        return current_usage
 
     @property
     def state_attributes(self):

@@ -48,6 +48,7 @@ This project is licensed under the [Apache-2.0 license](LICENSE).
 
 ## History
 
+- 1.0.5 : 이상치 데이터 센서에 반영되지 않도록 개선
 - 1.0.4 : 설정 변경 지원
 - 1.0.3 : hass.config_entries.async_forward_entry_setup 2025.6 버전에서 제거되는 변경사항 대응
 - 1.0.2 : 날짜 계산 오류 수정. 에너지 조회 유형 1(전전달, 전달, 이번달) 만 해당하는 오류
