@@ -1,5 +1,6 @@
 import logging
 import datetime
+import math
 
 from homeassistant.helpers.update_coordinator import CoordinatorEntity, DataUpdateCoordinator
 from homeassistant.components.sensor import SensorEntity
@@ -181,30 +182,43 @@ class KocomEnergySensor(CoordinatorEntity, SensorEntity):
 
     @property
     def state(self):
+        # coordinator.data가 None이거나 빈 딕셔너리인 경우 처리
+        if not self.coordinator.data:
+            if self._sensor_type == "energy":
+                # energy 센서는 현재 시간을 계속 표시
+                return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            return "unavailable" # 오류 발생 시 unavailable 반환
+        
         if self._sensor_type == "energy":
-            # 상태값을 현재시간으로 설정
             return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
-        # 각 유틸리티별 현재 사용량과 이전달 사용량 비교
+        # 각 유틸리티별 현재 사용량과 지난달 사용량 비교
         current_usage = None
         last_month_usage = None
+        
+        _LOGGER.debug(f"========== 센서 데이터 처리 시작 ==========")
         
         try:
             if self._sensor_type == "electricity":
                 current_usage = self.coordinator.data.get("electricity_usage_this_month")
                 last_month_usage = self.coordinator.data.get("electricity_usage_last_month")
+                _LOGGER.debug(f"이번달 전기 사용량 : {current_usage}, 지난달 전기 사용량 : {last_month_usage}")
             elif self._sensor_type == "gas":
                 current_usage = self.coordinator.data.get("gas_usage_this_month")
                 last_month_usage = self.coordinator.data.get("gas_usage_last_month")
+                _LOGGER.debug(f"이번달 가스 사용량 : {current_usage}, 지난달 가스 사용량 : {last_month_usage}")
             elif self._sensor_type == "water":
                 current_usage = self.coordinator.data.get("water_usage_this_month")
                 last_month_usage = self.coordinator.data.get("water_usage_last_month")
+                _LOGGER.debug(f"이번달 수도 사용량 : {current_usage}, 지난달 수도 사용량 : {last_month_usage}")
             elif self._sensor_type == "hot_water":
                 current_usage = self.coordinator.data.get("hot_water_usage_this_month")
                 last_month_usage = self.coordinator.data.get("hot_water_usage_last_month")
+                _LOGGER.debug(f"이번달 온수 사용량 : {current_usage}, 지난달 온수 사용량 : {last_month_usage}")
             elif self._sensor_type == "heating":
                 current_usage = self.coordinator.data.get("heating_usage_this_month")
                 last_month_usage = self.coordinator.data.get("heating_usage_last_month")
+                _LOGGER.debug(f"이번달 난방 사용량 : {current_usage}, 지난달 난방 사용량 : {last_month_usage}")
         except Exception as e:
             _LOGGER.error(f"{self._sensor_type} 센서 데이터 처리 중 오류 발생: {e}")
             return "unknown"
@@ -218,11 +232,21 @@ class KocomEnergySensor(CoordinatorEntity, SensorEntity):
             self._previous_value = current_usage
             return current_usage
             
-        # 이상치가 발생하는 패턴 : 이전달의 사용량이 이번달 사용량으로 응답데이터로 조회 됨
-        if current_usage == last_month_usage:
+        # 이상치가 발생하는 패턴 : 지난달의 사용량이 이번달 사용량으로 응답데이터로 조회 됨
+        is_anomaly = False
+        
+        _LOGGER.debug(f"{self._sensor_type} 이상치 검사 시작 - 현재: {current_usage}, 지난달: {last_month_usage}, 이전상태값: {self._previous_value}")
+        
+        # math.isclose()를 사용한 부동소수점 비교 (허용오차 기본 값은 (relative tolerance)는 1e-09)
+        if math.isclose(current_usage, last_month_usage):
+            is_anomaly = True
             _LOGGER.warning(
-                f"{self._sensor_type} 현재 사용량이 이전달과 동일합니다. 이전 상태값 유지 (현재: {current_usage}, 이전달: {last_month_usage})"
+                f"{self._sensor_type} 현재 사용량이 지난달과 동일합니다. 이전 상태값 유지 (현재: {current_usage}, 지난달: {last_month_usage})"
             )
+        
+        # 이상치로 판단되면 이전 값 유지
+        if is_anomaly:
+            _LOGGER.debug(f"{self._sensor_type} 이상치 감지로 이전 상태값 유지 : {self._previous_value}")
             return self._previous_value if self._previous_value is not None else "unknown"
         
         # 정상적인 경우 현재 값을 저장하고 반환

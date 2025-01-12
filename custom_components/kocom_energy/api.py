@@ -96,8 +96,8 @@ class API:
                 auth_response = (await asyncio.wait_for(reader.read(1024), timeout=10.0)).hex()
                 _LOGGER.debug(f'인증 응답 패킷: {auth_response}')
             except asyncio.TimeoutError:
-                _LOGGER.debug("인증 timeout")
-                return
+                _LOGGER.error("인증 timeout")
+                return {}
 
             if auth_response == self.auth_resp_checker:
                 _LOGGER.debug("인증 성공")
@@ -349,8 +349,8 @@ class API:
 
 
                 except asyncio.TimeoutError:
-                    _LOGGER.debug("Query response timeout")
-                    return
+                    _LOGGER.error("Query response timeout")
+                    return {}
             else:
                 _LOGGER.error(f"인증정보가 올바르지 않습니다.")
 
